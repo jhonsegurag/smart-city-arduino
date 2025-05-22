@@ -12,7 +12,10 @@
 #include <ESP32Servo.h>
 #include <Wire.h>              //Library required for I2C comms (LCD)
 #include <LiquidCrystal_I2C.h> //Library for LCD display via I2C
-#include <math.h>              //Mathematics library for pow function (CO2 computation)
+#include <math.h>     
+#include <string>
+#include <iostream>
+#include <algorithm>         //Mathematics library for pow function (CO2 computation)
 
 #define LDR1 12 // LDR Light sensor from traffic light 1 connected in pin A0
 #define LDR2 13 // LDR Light sensor from traffic light 2 connected in pin A1
@@ -37,9 +40,9 @@ const char* ssid = "WIFI_SSID"; // Reemplazar con el nombre de la red WiFi
 const char* password = "**********";  // Reemplazar con la contrasena de la red WiFi
 
 // URL del servicio de predicciones de tráfico
-const char* smartCityServiceUrl = "http://smart-city-ms/api";
-const char* PredictionsPath = "/predictions";
-const char* TrafficDataPath = "/traffic";
+const String smartCityServiceUrl = "http://smart-city-ms/api";
+const String PredictionsPath = "/predictions";
+const String TrafficDataPath = "/traffic";
 
 // Constant definitions
 //->CO2
@@ -57,33 +60,35 @@ LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 // Configuración de pines para semáforos
 // Semáforo 1
-const int LR1 = 0;  // Luz Roja 1
-const int LY1 = 0;  // Luz Amarilla 1
-const int LG1 = 0;  // Luz Verde 1
+int vLR1 = 0;  // Luz Roja 1
+int vLY1 = 0;  // Luz Amarilla 1
+int vLG1 = 0;  // Luz Verde 1
 
 // Semáforo 2
-const int LR2 = 0;  // Luz Roja 2
-const int LY2 = 0; // Luz Amarilla 2
-const int LG2 = 0; // Luz Verde 2
+int vLR2 = 0;  // Luz Roja 2
+int vLY2 = 0; // Luz Amarilla 2
+int vLG2 = 0; // Luz Verde 2
 
 // Sensores infrarrojos de tráfico
-const int vCNY1 = false; // Sensor infrarrojo 1
-const int vCNY2 = false; // Sensor infrarrojo 2
-const int vCNY3 = false; // Sensor infrarrojo 3
-const int vCNY4 = false; // Sensor infrarrojo 4
-const int vCNY5 = false; // Sensor infrarrojo 5
-const int vCNY6 = false; // Sensor infrarrojo 6
+int vCNY1 = false; // Sensor infrarrojo 1
+int vCNY2 = false; // Sensor infrarrojo 2
+int vCNY3 = false; // Sensor infrarrojo 3
+int vCNY4 = false; // Sensor infrarrojo 4
+int vCNY5 = false; // Sensor infrarrojo 5
+int vCNY6 = false; // Sensor infrarrojo 6
 
 // Pulsadores (peatones)
-const int vP1 = false;  // Pulsador peatonal 1
-const int vP2 = false;  // Pulsador peatonal 2
+int vP1 = false;  // Pulsador peatonal 1
+int vP2 = false;  // Pulsador peatonal 2
 
 // Sensores de luz ambiente
-const int vLDR1 = 0; // Sensor de luz 1
-const int vLDR2 = 0; // Sensor de luz 2
+int vLDR1 = 0; // Sensor de luz 1
+int vLDR2 = 0; // Sensor de luz 2
 
 // Sensor de CO2
-const int vCO2 = 0;  // Sensor de monóxido de carbono
+int vCO2 = 0;  // Sensor de monóxido de carbono
+
+int lastime = 0;
 
 // Variables para almacenar estados
 int trafficIntensity1 = 0; // Intensidad de tráfico en dirección 1
@@ -100,8 +105,8 @@ unsigned long baseGreenTime2 = 20000;  // Tiempo base verde para semáforo 2
 unsigned long yellowTime = 3000;       // Tiempo amarillo para ambos semáforos
 
 // Tiempos dinámicos actuales
-unsigned long currentGreenTime1;
-unsigned long currentGreenTime2;
+long currentGreenTime1 = 0;
+long currentGreenTime2 = 0;
 
 // Variables para control de tiempo
 unsigned long previousMillis = 0;
@@ -384,12 +389,12 @@ void adjustTimings() {
   // Considerar solicitudes de peatones
   if (pedestrianRequest1 && currentState != GREEN_1) {
     // Reducir tiempo de espera si hay peatones esperando
-    currentGreenTime2 = min(currentGreenTime2, 15000);
+    currentGreenTime2 = min(currentGreenTime2, long(15000));
   }
   
   if (pedestrianRequest2 && (currentState == GREEN_1 || currentState == YELLOW_1)) {
     // Reducir tiempo de espera si hay peatones esperando
-    currentGreenTime1 = min(currentGreenTime1, 15000);
+    currentGreenTime1 = min(currentGreenTime1, long(15000));
   }
   
   // Considerar niveles de CO2
@@ -503,14 +508,14 @@ void sendDataSmartCity() {
     HTTPClient http;
     
     // URL del servicio para enviar datos
-    const char* dataServiceUrl = smartCityServiceUrl + String(TrafficDataPath);
+    const String dataServiceUrl = smartCityServiceUrl + TrafficDataPath;
     
     // Crear JSON con los datos actuales
     DynamicJsonDocument doc(1024);
     doc["timestamp"] = millis();
     doc["trafficIntensity1"] = trafficIntensity1;
     doc["trafficIntensity2"] = trafficIntensity2;
-    doc["co2Level"] = vCO2;
+    doc["co2Level"] = co2Level;
     doc["lightLevel1"] = lightLevel1;
     doc["lightLevel2"] = lightLevel2;
     doc["currentGreenTime1"] = currentGreenTime1;
